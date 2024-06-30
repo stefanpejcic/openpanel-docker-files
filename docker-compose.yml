@@ -1,0 +1,67 @@
+version: '3.8'
+
+networks:
+  default:
+    name: ${PWD}
+
+services:
+  nginx:
+    image: nginx:1.23.0-alpine
+    ports:
+      - '80:80'
+    command: nginx -g 'daemon off;'
+    volumes:
+      # load nginx config
+      - ./nginx/config/nginx.conf:/etc/nginx/nginx.conf
+      - ./nginx/config/default.conf:/etc/nginx/conf.d/default.conf
+      - ./nginx/config/php.conf:/etc/nginx/php.conf
+      - ./nginx/sites-enabled:/etc/nginx/sites-enabled
+      - /etc/localtime:/etc/localtime:ro
+    depends_on:
+      - ${APP_1}
+      - ${APP_2}
+
+  mailhog:
+    image: mailhog/mailhog
+    container_name: mailhog
+    logging:
+      driver: 'none'
+    ports:
+      - '1025:1025'
+      - '8025:8025'
+
+  mysql_8:
+    image: mysql:8.0.28
+    restart: unless-stopped
+    tty: true
+    container_name: mysql8
+    ports:
+      - '33080:3306'
+    volumes:
+      - ${PWD}/mysql:/var/lib/mysql
+    environment:
+      MYSQL_USER: homestad
+      MYSQL_PASSWORD: secret
+      MYSQL_ROOT_PASSWORD: secret
+      SERVICE_TAGS: dev
+      SERVICE_NAME: mysql_8
+
+  ${APP_1}:
+    build:
+      context: .
+      dockerfile: ${PWD}/${APP_1}/Dockerfile
+    restart: unless-stopped
+    container_name: ${APP_1}
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - ${PWD}/${APP_1}:${PWD}/${APP_1}
+
+  ${APP_2}:
+    build:
+      context: .
+      dockerfile: ${PWD}/${APP_2}/Dockerfile
+    container_name: ${APP_2}
+    restart: unless-stopped
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - ${PWD}/${APP_2}:${PWD}/${APP_2}
